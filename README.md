@@ -68,7 +68,7 @@ The repo is set up for a **single Vercel project** at the **repository root** (n
 4. **Do not** set `VITE_API_BASE` for production: the UI should call **`/api` on the same origin**.
 5. **Initial data:** with `DATABASE_URL` pointing at your hosted DB, run **`python seed.py`** from `backend/` on your machine (or any runner with network access to the DB) so tables, users, and curriculum exist. Vercel does not run `seed.py` automatically.
 
-Vercel sets `VERCEL=1` automatically; the API uses it to **optionally mount a local `dist`** (when present) and to pick a writable SQLite path only if you stay on SQLite (not recommended for real use). The **generated `public/`** directory is gitignored; it is created on each Vercel build.
+Vercel sets `VERCEL=1` automatically; the API uses it to **optionally mount a local `dist`** (when present) and to pick a writable SQLite path only if you stay on SQLite (not recommended for real use). The **generated `/public/`** directory at the repo root is gitignored; it is created on each Vercel build (do not confuse with `frontend/public/`, which is part of the Vite app).
 
 **Limits:** serverless timeouts and cold starts apply; heavy grading runs close to hobby-tier time limits — upgrade the plan or host the API on a long-running service if you hit limits.
 
