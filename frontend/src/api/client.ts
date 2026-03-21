@@ -1,7 +1,29 @@
 const TOKEN_KEY = 'aw_token'
 
-/** Set `VITE_API_BASE=http://127.0.0.1:8010` in `frontend/.env` if `/api` proxy fails. */
-const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined)?.replace(/\/$/, '') ?? ''
+/** Set `VITE_API_BASE=http://127.0.0.1:8010` in `frontend/.env` if `/api` proxy fails. Use origin only (no path). */
+const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined)?.trim() ?? ''
+
+function apiOriginForFetch(): string {
+  if (API_BASE) {
+    try {
+      const raw = /:\/\//.test(API_BASE) ? API_BASE : `https://${API_BASE}`
+      return new URL(raw).origin
+    } catch {
+      return ''
+    }
+  }
+  if (typeof window !== 'undefined') return window.location.origin
+  return ''
+}
+
+/** Root-absolute URL so paths never resolve relative to /login, /lessons/… */
+function buildUrl(path: string): string {
+  if (path.startsWith('http://') || path.startsWith('https://')) return path
+  const absPath = path.startsWith('/') ? path : `/${path}`
+  const origin = apiOriginForFetch()
+  if (!origin) return absPath
+  return new URL(absPath, origin).href
+}
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY)
@@ -10,11 +32,6 @@ export function getToken(): string | null {
 export function setToken(token: string | null) {
   if (token) localStorage.setItem(TOKEN_KEY, token)
   else localStorage.removeItem(TOKEN_KEY)
-}
-
-function buildUrl(path: string): string {
-  if (path.startsWith('http')) return path
-  return `${API_BASE}${path}`
 }
 
 function formatDetail(detail: unknown): string {
@@ -48,7 +65,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     res = await fetch(url, { ...init, headers })
   } catch (e) {
     const hint =
-      API_BASE === ''
+      import.meta.env.DEV && !API_BASE && typeof window !== 'undefined'
         ? ' Is the API running on port 8010? (Vite proxies /api only when dev server is used.)'
         : ''
     throw new Error(e instanceof Error ? `${e.message}.${hint}` : `Network error.${hint}`)

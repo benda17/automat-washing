@@ -14,20 +14,6 @@ from app.database import Base, engine
 
 logger = logging.getLogger(__name__)
 
-# Vercel may forward ASGI paths without the `/api` prefix. We remap only for API-like requests.
-# Never remap full document navigations to SPA routes (/admin, /submissions, /lessons/…, etc.).
-_VERCEL_API_ROOTS = (
-    "/auth",
-    "/me",
-    "/course",
-    "/lessons",
-    "/submissions",
-    "/admin",
-    "/meta",
-)
-_SPA_GET_PATHS = frozenset({"/", "/login", "/guide", "/roadmap", "/submissions", "/admin"})
-
-
 def _resolve_frontend_dist() -> Path | None:
     """Find the Vite `dist` folder (local dev, `vercel dev`, or Vercel bundle via includeFiles)."""
     override = (os.environ.get("AUTOWASH_FRONTEND_DIST") or "").strip()
@@ -98,6 +84,18 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(api_router)
+
+    # Vercel often invokes `api/index.py` with paths that omit the `/api` segment (e.g. /auth/login).
+    # Duplicate routers at their natural prefixes (not /lessons — conflicts with SPA document URLs).
+    if os.environ.get("VERCEL"):
+        from app.api import admin, auth, course, me, meta, submissions
+
+        app.include_router(auth.router)
+        app.include_router(me.router)
+        app.include_router(course.router)
+        app.include_router(meta.router)
+        app.include_router(admin.router)
+        app.include_router(submissions.router)
 
     # On Vercel, `vercel.json` bundles `frontend/dist/**` into the Python function (`includeFiles`).
     # Mount the SPA so `/`, client routes, and hashed `/assets/*` are served from the same origin as `/api`.
