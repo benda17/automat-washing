@@ -1,0 +1,57 @@
+# Example manifests for a Rancher-managed cluster: adjust images, secrets, and ingress.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: autowash
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: autowash-secrets
+  namespace: autowash
+type: Opaque
+stringData:
+  SECRET_KEY: replace-with-openssl-rand-hex-32
+  DATABASE_URL: postgresql+psycopg2://user:pass@postgres:5432/autowash
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: autowash-api
+  namespace: autowash
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: autowash-api
+  template:
+    metadata:
+      labels:
+        app: autowash-api
+    spec:
+      containers:
+        - name: api
+          image: your-registry/autowash-api:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: autowash-secrets
+          readinessProbe:
+            httpGet:
+              path: /docs
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: autowash-api
+  namespace: autowash
+spec:
+  selector:
+    app: autowash-api
+  ports:
+    - port: 8000
+      targetPort: 8000
