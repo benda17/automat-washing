@@ -6,12 +6,25 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.requests import Request
 
 from app.api import api_router
 from app.config import get_settings
 from app.database import Base, engine
 
 logger = logging.getLogger(__name__)
+
+# Vercel `api/index.py` sometimes forwards ASGI paths without the `/api` prefix; our routers are
+# mounted at `/api/...`. Prefix only known API roots so `/`, `/assets/*`, etc. stay unchanged.
+_VERCEL_API_ROOTS = (
+    "/auth",
+    "/me",
+    "/course",
+    "/lessons",
+    "/submissions",
+    "/admin",
+    "/meta",
+)
 
 
 def _resolve_frontend_dist() -> Path | None:
@@ -53,7 +66,17 @@ async def lifespan(_: FastAPI):
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title=settings.app_name, lifespan=lifespan)
+    app = FastAPI(title=settings.app_name, lifespan=lifespan, redirect_slashes=False)
+
+    @app.middleware("http")
+    async def vercel_api_path_prefix(request: Request, call_next):
+        if os.environ.get("VERCEL"):
+            path = request.scope.get("path") or ""
+            if path and not path.startswith("/api"):
+                if any(path == r or path.startswith(f"{r}/") for r in _VERCEL_API_ROOTS):
+                    request.scope["path"] = f"/api{path}"
+        return await call_next(request)
+
     origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
     origin_regex = (settings.cors_origin_regex or "").strip() or None
     app.add_middleware(

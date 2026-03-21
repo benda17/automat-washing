@@ -51,8 +51,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ username, password }),
     })
     setToken(res.access_token)
-    await refresh()
-  }, [refresh])
+    try {
+      const user = await api<User>('/api/me')
+      setState({ status: 'authenticated', user })
+    } catch (e) {
+      setToken(null)
+      setState({ status: 'anonymous' })
+      const detail = e instanceof Error ? e.message : 'Session check failed'
+      throw new Error(
+        `${detail} If you just deployed, seed your production database and set CORS for this origin.`,
+      )
+    }
+  }, [])
 
   const logout = useCallback(() => {
     setToken(null)

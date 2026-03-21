@@ -66,7 +66,7 @@ The repo is set up for a **single Vercel project** at the **repository root** (n
 | `CORS_ORIGIN_REGEX` | Optional | e.g. `https://.*\.vercel\.app` so **Preview** deployments can call the API without listing every preview URL. |
 
 4. **Do not** set `VITE_API_BASE` for production: the UI should call **`/api` on the same origin**.
-5. **Initial data:** with `DATABASE_URL` pointing at your hosted DB, run **`python seed.py`** from `backend/` on your machine (or any runner with network access to the DB) so tables, users, and curriculum exist. Vercel does not run `seed.py` automatically.
+5. **Initial data:** with `DATABASE_URL` pointing at your hosted DB, run **`python seed.py`** from `backend/` on your machine (or any runner with network access to the DB) so tables, users, and curriculum exist. Vercel does not run `seed.py` automatically. **Without this, login always fails** (empty DB). If you omit `DATABASE_URL`, the app uses **`/tmp` SQLite**, which is **empty on cold starts** and not shared across instances — use hosted Postgres for production.
 
 Vercel sets `VERCEL=1` automatically; the API uses it to **mount the bundled `frontend/dist`** and to pick a writable SQLite path only if you stay on SQLite (not recommended for real use). If the homepage returns `{"detail":"Not Found"}`, the UI bundle is missing: confirm the latest deployment **succeeded** and that **`includeFiles`** still matches **`frontend/dist/**`** after the Vite build.
 
