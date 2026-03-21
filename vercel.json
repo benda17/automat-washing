@@ -2,10 +2,12 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "npm ci --prefix frontend && pip install -r requirements.txt",
-  "buildCommand": "npm run build --prefix frontend",
-  "functions": {
-    "main.py": {
-      "includeFiles": "frontend/dist/**"
+  "buildCommand": "npm run build --prefix frontend && rm -rf public && mkdir -p public && cp -r frontend/dist/. public/",
+  "rewrites": [
+    { "handle": "filesystem" },
+    {
+      "source": "/((?!api(?:/|$)).*)",
+      "destination": "/index.html"
     }
-  }
+  ]
 }
