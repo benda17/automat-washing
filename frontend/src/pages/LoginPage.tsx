@@ -29,8 +29,15 @@ export function LoginPage() {
       <div className="aw-login-bg" aria-hidden />
       <div className="aw-login-center">
         <div className="aw-login-stack">
-          <div className="aw-login-brand-mark" aria-hidden>
-            <span className="aw-droplet">◌</span>
+          <div className="aw-login-brand-mark">
+            <img
+              className="aw-login-logo"
+              src="/logo.png"
+              alt=""
+              width={96}
+              height={96}
+              decoding="async"
+            />
           </div>
           <form className="aw-login-card" onSubmit={onSubmit}>
             <h1 className="aw-display aw-login-title">Automat Washing</h1>

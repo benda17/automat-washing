@@ -12,8 +12,18 @@ export function Shell() {
     <div className="aw-shell">
       <header className="aw-topnav aw-topnav-wash">
         <div className="aw-brand">
-          <strong>Automat Washing</strong>
-          <span>rinse · build · ship</span>
+          <img
+            className="aw-brand-logo"
+            src="/logo.png"
+            alt=""
+            width={42}
+            height={42}
+            decoding="async"
+          />
+          <div className="aw-brand-text">
+            <strong>Automat Washing</strong>
+            <span>rinse · build · ship</span>
+          </div>
         </div>
         {state.status === 'authenticated' && (
           <nav className="aw-nav-links" aria-label="Primary">
