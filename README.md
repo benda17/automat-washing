@@ -48,8 +48,8 @@ Set a strong `SECRET_KEY` in the environment for anything beyond your laptop.
 
 The repo is set up for a **single Vercel project** at the **repository root** (not `frontend/` as the root directory):
 
-- **`vercel.json`** — builds the Vite app, then **copies `frontend/dist` → root `public/`** (Linux build image). Static files (`/`, `/assets/*`, `/logo.png`, …) are served from the **edge**; **`rewrites`** send non-file routes to `index.html` for React Router, while **`/api/*`** still hits the Python function.
-- **`main.py`** (repo root) — Vercel’s FastAPI entry; adds `backend/` to `sys.path`. When **`VERCEL` is set**, the app **optionally mounts** `frontend/dist` if that folder exists in the function (e.g. `vercel dev`); production relies on **`public/`** + rewrites for the UI.
+- **`vercel.json`** — runs **`npm run build --prefix frontend`**, then bundles **`frontend/dist/**` into the Python serverless function** via **`functions.main.py.includeFiles`**. All browser traffic (including `/` and React Router paths) is handled by FastAPI, which **mounts** that folder with **`StaticFiles(..., html=True)`** when **`VERCEL`** is set.
+- **`main.py`** (repo root) — Vercel’s FastAPI entry; adds `backend/` to `sys.path`. **`/api/*`** is served by the API routers; everything else is the Vite build from **`frontend/dist`**.
 - **`requirements.txt`** (repo root) — same dependencies as `backend/requirements.txt` (flat list; Vercel’s parser does not support `-r` includes).
 
 ### Dashboard / CLI checklist
@@ -68,7 +68,7 @@ The repo is set up for a **single Vercel project** at the **repository root** (n
 4. **Do not** set `VITE_API_BASE` for production: the UI should call **`/api` on the same origin**.
 5. **Initial data:** with `DATABASE_URL` pointing at your hosted DB, run **`python seed.py`** from `backend/` on your machine (or any runner with network access to the DB) so tables, users, and curriculum exist. Vercel does not run `seed.py` automatically.
 
-Vercel sets `VERCEL=1` automatically; the API uses it to **optionally mount a local `dist`** (when present) and to pick a writable SQLite path only if you stay on SQLite (not recommended for real use). The **generated `/public/`** directory at the repo root is gitignored; it is created on each Vercel build (do not confuse with `frontend/public/`, which is part of the Vite app).
+Vercel sets `VERCEL=1` automatically; the API uses it to **mount the bundled `frontend/dist`** and to pick a writable SQLite path only if you stay on SQLite (not recommended for real use). If the homepage returns `{"detail":"Not Found"}`, the UI bundle is missing: confirm the latest deployment **succeeded** and that **`includeFiles`** still matches **`frontend/dist/**`** after the Vite build.
 
 **Limits:** serverless timeouts and cold starts apply; heavy grading runs close to hobby-tier time limits — upgrade the plan or host the API on a long-running service if you hit limits.
 

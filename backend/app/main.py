@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def _resolve_frontend_dist() -> Path | None:
-    """Find the Vite `dist` folder (local dev, `vercel dev`, or bundled serverless layouts)."""
+    """Find the Vite `dist` folder (local dev, `vercel dev`, or Vercel bundle via includeFiles)."""
     override = (os.environ.get("AUTOWASH_FRONTEND_DIST") or "").strip()
     if override:
         p = Path(override).resolve()
@@ -23,25 +23,25 @@ def _resolve_frontend_dist() -> Path | None:
             return p
 
     here = Path(__file__).resolve()  # .../backend/app/main.py
-    roots: list[Path] = [
-        here.parent.parent.parent,
-        Path.cwd(),
-        Path("/var/task"),
+    repo_root = here.parent.parent.parent
+    candidates: list[Path] = [
+        Path("/var/task/frontend/dist"),
+        Path("/var/task") / "frontend" / "dist",
+        repo_root / "frontend" / "dist",
+        Path.cwd() / "frontend" / "dist",
+        Path.cwd() / "dist",
     ]
-
-    rels = (Path("frontend") / "dist", Path("dist"))
     seen: set[Path] = set()
-    for root in roots:
-        for rel in rels:
-            try:
-                cand = (root / rel).resolve()
-            except OSError:
-                continue
-            if cand in seen:
-                continue
-            seen.add(cand)
-            if cand.is_dir() and (cand / "index.html").is_file():
-                return cand
+    for cand in candidates:
+        try:
+            cand = cand.resolve()
+        except OSError:
+            continue
+        if cand in seen:
+            continue
+        seen.add(cand)
+        if cand.is_dir() and (cand / "index.html").is_file():
+            return cand
     return None
 
 
@@ -66,17 +66,16 @@ def create_app() -> FastAPI:
     )
     app.include_router(api_router)
 
-    # On Vercel, the UI is copied to root `public/` at build time and served from the edge (see
-    # vercel.json). If `frontend/dist` is still present in the function bundle (e.g. `vercel dev`),
-    # mount it so deep links keep working.
+    # On Vercel, `vercel.json` bundles `frontend/dist/**` into the Python function (`includeFiles`).
+    # Mount the SPA so `/`, client routes, and hashed `/assets/*` are served from the same origin as `/api`.
     if os.environ.get("VERCEL"):
         dist = _resolve_frontend_dist()
         if dist is not None:
             app.mount("/", StaticFiles(directory=str(dist), html=True), name="spa")
         else:
-            logger.warning(
-                "VERCEL is set but frontend dist was not found; static UI must be served from "
-                "`public/` (build should run: cp frontend/dist -> public/). API routes still work."
+            logger.error(
+                "VERCEL is set but frontend/dist was not found inside the function bundle. "
+                "Check vercel.json functions.main.py.includeFiles and that buildCommand produces frontend/dist."
             )
     return app
 
