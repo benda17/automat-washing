@@ -72,6 +72,12 @@ Vercel sets `VERCEL=1` automatically; the API uses it to **serve the Vite build*
 
 **Limits:** serverless timeouts and cold starts apply; heavy grading runs close to hobby-tier time limits — upgrade the plan or host the API on a long-running service if you hit limits.
 
+### Production deployment
+
+- **URL:** [https://automat-washing.vercel.app/](https://automat-washing.vercel.app/)
+
+In the Vercel project **Environment Variables**, set **`CORS_ORIGINS`** to `https://automat-washing.vercel.app` (no trailing slash) so the browser can call `/api` from that origin. Alternatively set **`CORS_ORIGIN_REGEX`** to `https://.*\.vercel\.app` to allow this host and other `*.vercel.app` previews.
+
 ## Users (6)
 
 These are the accounts written by `seed.py` into the database. **Sign in with username + password** (case-insensitive username). `email` is optional on the user record for future contact fields; the cohort rows use username only. **Change passwords** before any real deployment.
