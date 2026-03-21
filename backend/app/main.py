@@ -14,8 +14,8 @@ from app.database import Base, engine
 
 logger = logging.getLogger(__name__)
 
-# Vercel `api/index.py` sometimes forwards ASGI paths without the `/api` prefix; our routers are
-# mounted at `/api/...`. Prefix only known API roots so `/`, `/assets/*`, etc. stay unchanged.
+# Vercel may forward ASGI paths without the `/api` prefix. We remap only for API-like requests.
+# Never remap full document navigations to SPA routes (/admin, /submissions, /lessons/…, etc.).
 _VERCEL_API_ROOTS = (
     "/auth",
     "/me",
@@ -25,6 +25,7 @@ _VERCEL_API_ROOTS = (
     "/admin",
     "/meta",
 )
+_SPA_GET_PATHS = frozenset({"/", "/login", "/guide", "/roadmap", "/submissions", "/admin"})
 
 
 def _resolve_frontend_dist() -> Path | None:
@@ -66,15 +67,24 @@ async def lifespan(_: FastAPI):
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title=settings.app_name, lifespan=lifespan, redirect_slashes=False)
+    app = FastAPI(title=settings.app_name, lifespan=lifespan)
 
     @app.middleware("http")
     async def vercel_api_path_prefix(request: Request, call_next):
-        if os.environ.get("VERCEL"):
-            path = request.scope.get("path") or ""
-            if path and not path.startswith("/api"):
-                if any(path == r or path.startswith(f"{r}/") for r in _VERCEL_API_ROOTS):
-                    request.scope["path"] = f"/api{path}"
+        if not os.environ.get("VERCEL"):
+            return await call_next(request)
+        path = request.scope.get("path") or ""
+        if not path or path.startswith("/api"):
+            return await call_next(request)
+        # Top-level document loads must reach StaticFiles (html=True), not /api/* JSON routes.
+        sec_dest = request.headers.get("sec-fetch-dest")
+        if sec_dest == "document":
+            return await call_next(request)
+        # Without Sec-Fetch-Dest (rare), only skip exact SPA paths — not /lessons/* (those can be API fetches).
+        if request.method == "GET" and path in _SPA_GET_PATHS:
+            return await call_next(request)
+        if any(path == r or path.startswith(f"{r}/") for r in _VERCEL_API_ROOTS):
+            request.scope["path"] = f"/api{path}"
         return await call_next(request)
 
     origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
