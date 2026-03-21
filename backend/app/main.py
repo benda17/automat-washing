@@ -75,7 +75,7 @@ def create_app() -> FastAPI:
         else:
             logger.error(
                 "VERCEL is set but frontend/dist was not found inside the function bundle. "
-                "Check vercel.json functions.main.py.includeFiles and that buildCommand produces frontend/dist."
+                "Check vercel.json functions.api/index.py.includeFiles and that buildCommand produces frontend/dist."
             )
     return app
 

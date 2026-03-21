@@ -48,8 +48,8 @@ Set a strong `SECRET_KEY` in the environment for anything beyond your laptop.
 
 The repo is set up for a **single Vercel project** at the **repository root** (not `frontend/` as the root directory):
 
-- **`vercel.json`** — runs **`npm run build --prefix frontend`**, then bundles **`frontend/dist/**` into the Python serverless function** via **`functions.main.py.includeFiles`**. All browser traffic (including `/` and React Router paths) is handled by FastAPI, which **mounts** that folder with **`StaticFiles(..., html=True)`** when **`VERCEL`** is set.
-- **`main.py`** (repo root) — Vercel’s FastAPI entry; adds `backend/` to `sys.path`. **`/api/*`** is served by the API routers; everything else is the Vite build from **`frontend/dist`**.
+- **`vercel.json`** — runs **`npm run build --prefix frontend`**, then bundles **`frontend/dist/**` into the Python serverless function** via **`functions.api/index.py.includeFiles`**. Vercel only matches **`functions`** patterns against files under **`api/`**, so the ASGI entry is **`api/index.py`** (not repo-root `main.py`).
+- **`api/index.py`** — Vercel’s FastAPI entry; adds `backend/` to `sys.path` and exposes **`app`**. **`/api/*`** is served by the API routers; everything else is the Vite build from **`frontend/dist`** when **`VERCEL`** is set.
 - **`requirements.txt`** (repo root) — same dependencies as `backend/requirements.txt` (flat list; Vercel’s parser does not support `-r` includes).
 
 ### Dashboard / CLI checklist
