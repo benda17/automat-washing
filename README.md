@@ -48,9 +48,9 @@ Set a strong `SECRET_KEY` in the environment for anything beyond your laptop.
 
 The repo is set up for a **single Vercel project** at the **repository root** (not `frontend/` as the root directory):
 
-- **`vercel.json`** — builds the Vite app (`npm run build --prefix frontend`), publishes `frontend/dist`, and rewrites non-`/api` routes to `index.html` for the React router.
-- **`main.py`** (repo root) — exposes the FastAPI `app` for Vercel’s Python + FastAPI runtime; it adds `backend/` to `sys.path` and imports `app.main:app`.
-- **`requirements.txt`** (repo root) — pulls in `backend/requirements.txt` for the serverless API.
+- **`vercel.json`** — builds the Vite app, then bundles **`frontend/dist/**` into the Python function** (`functions.main.py.includeFiles`) so the UI ships with the API.
+- **`main.py`** (repo root) — Vercel’s FastAPI entry; adds `backend/` to `sys.path`. When **`VERCEL` is set**, the app **mounts** `frontend/dist` with **`StaticFiles(..., html=True)`** so `/`, client routes, and `/assets/*` work (Vercel routes the whole deployment through this function, so a separate static `outputDirectory` alone is not enough).
+- **`requirements.txt`** (repo root) — same dependencies as `backend/requirements.txt` (flat list; Vercel’s parser does not support `-r` includes).
 
 ### Dashboard / CLI checklist
 
@@ -68,7 +68,7 @@ The repo is set up for a **single Vercel project** at the **repository root** (n
 4. **Do not** set `VITE_API_BASE` for production: the UI should call **`/api` on the same origin**.
 5. **Initial data:** with `DATABASE_URL` pointing at your hosted DB, run **`python seed.py`** from `backend/` on your machine (or any runner with network access to the DB) so tables, users, and curriculum exist. Vercel does not run `seed.py` automatically.
 
-Vercel sets `VERCEL=1` automatically; the API uses it to pick a writable SQLite path only if you stay on SQLite (not recommended for real use).
+Vercel sets `VERCEL=1` automatically; the API uses it to **serve the Vite build** and to pick a writable SQLite path only if you stay on SQLite (not recommended for real use).
 
 **Limits:** serverless timeouts and cold starts apply; heavy grading runs close to hobby-tier time limits — upgrade the plan or host the API on a long-running service if you hit limits.
 

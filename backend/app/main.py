@@ -1,7 +1,10 @@
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api import api_router
 from app.config import get_settings
@@ -28,6 +31,13 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(api_router)
+
+    # On Vercel, the root `main.py` serverless entry receives all paths; the static `outputDirectory`
+    # is not used for the HTML/JS shell. Serve the Vite build from disk (bundled via vercel.json includeFiles).
+    if os.environ.get("VERCEL"):
+        dist = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+        if dist.is_dir():
+            app.mount("/", StaticFiles(directory=str(dist), html=True), name="spa")
     return app
 
 
