@@ -1,3 +1,4 @@
+import importlib.util
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -6,13 +7,52 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.exc import IntegrityError
 from starlette.requests import Request
 
 from app.api import api_router
 from app.config import get_settings
-from app.database import Base, engine
+from app.database import Base, SessionLocal, engine
 
 logger = logging.getLogger(__name__)
+
+
+def _vercel_seed_if_empty() -> None:
+    """First cold start on Vercel often has an empty DB; seed default users + curriculum once."""
+    if os.environ.get("AUTOWASH_SKIP_VERCEL_AUTO_SEED", "").strip().lower() in ("1", "true", "yes"):
+        return
+    from sqlalchemy import func, select
+
+    from app.models import User
+
+    db = SessionLocal()
+    try:
+        n = db.scalar(select(func.count()).select_from(User)) or 0
+        if n:
+            return
+        backend_root = Path(__file__).resolve().parent.parent
+        seed_path = backend_root / "seed.py"
+        if not seed_path.is_file():
+            logger.error("VERCEL auto-seed: seed.py not found at %s", seed_path)
+            return
+        spec = importlib.util.spec_from_file_location("autowash_seed", seed_path)
+        if spec is None or spec.loader is None:
+            return
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mod.seed_users(db)
+        mod.seed_course(db)
+        logger.warning(
+            "VERCEL: database had 0 users; auto-seeded cohort + curriculum (incl. benda / Aa123456). "
+            "Disable with AUTOWASH_SKIP_VERCEL_AUTO_SEED=1."
+        )
+    except IntegrityError:
+        db.rollback()
+        logger.info("VERCEL auto-seed skipped (parallel cold start or existing users).")
+    except Exception:
+        logger.exception("VERCEL auto-seed failed")
+    finally:
+        db.close()
 
 def _resolve_frontend_dist() -> Path | None:
     """Find the Vite `dist` folder (local dev, `vercel dev`, or Vercel bundle via includeFiles)."""
@@ -48,6 +88,8 @@ def _resolve_frontend_dist() -> Path | None:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
+    if os.environ.get("VERCEL"):
+        _vercel_seed_if_empty()
     yield
 
 
@@ -56,21 +98,15 @@ def create_app() -> FastAPI:
     app = FastAPI(title=settings.app_name, lifespan=lifespan)
 
     @app.middleware("http")
-    async def vercel_api_path_prefix(request: Request, call_next):
+    async def vercel_lessons_api_prefix(request: Request, call_next):
         if not os.environ.get("VERCEL"):
             return await call_next(request)
         path = request.scope.get("path") or ""
-        if not path or path.startswith("/api"):
+        if not path.startswith("/lessons/") or path.startswith("/api/"):
             return await call_next(request)
-        # Top-level document loads must reach StaticFiles (html=True), not /api/* JSON routes.
-        sec_dest = request.headers.get("sec-fetch-dest")
-        if sec_dest == "document":
+        if request.headers.get("sec-fetch-dest") == "document":
             return await call_next(request)
-        # Without Sec-Fetch-Dest (rare), only skip exact SPA paths — not /lessons/* (those can be API fetches).
-        if request.method == "GET" and path in _SPA_GET_PATHS:
-            return await call_next(request)
-        if any(path == r or path.startswith(f"{r}/") for r in _VERCEL_API_ROOTS):
-            request.scope["path"] = f"/api{path}"
+        request.scope["path"] = f"/api{path}"
         return await call_next(request)
 
     origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
