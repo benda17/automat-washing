@@ -119,8 +119,9 @@ code {
   min-width: 0;
 }
 .aw-brand-logo {
-  width: 42px;
   height: 42px;
+  width: auto;
+  max-width: 72px;
   object-fit: contain;
   flex-shrink: 0;
   position: relative;
@@ -497,9 +498,9 @@ textarea.aw-input {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: min(200px, 52vw);
-  aspect-ratio: 1;
-  max-height: 200px;
+  width: min(240px, 58vw);
+  aspect-ratio: 1.15;
+  max-height: 220px;
   background: radial-gradient(
     circle at 50% 42%,
     rgba(34, 211, 238, 0.22),
@@ -510,9 +511,9 @@ textarea.aw-input {
   z-index: -1;
 }
 .aw-login-logo {
-  width: min(96px, 24vw);
+  width: min(132px, 38vw);
   height: auto;
-  max-height: 96px;
+  max-height: min(132px, 28vh);
   object-fit: contain;
   display: inline-block;
   vertical-align: top;

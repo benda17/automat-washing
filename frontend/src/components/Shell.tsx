@@ -14,9 +14,9 @@ export function Shell() {
         <div className="aw-brand">
           <img
             className="aw-brand-logo"
-            src="/logo.png?v=4"
+            src="/logo.png?v=6"
             alt=""
-            width={42}
+            width={56}
             height={42}
             decoding="async"
           />
