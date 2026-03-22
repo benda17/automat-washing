@@ -14,10 +14,10 @@ export function Shell() {
         <div className="aw-brand">
           <img
             className="aw-brand-logo"
-            src="/logo.png?v=7"
+            src="/logo.png?v=8"
             alt=""
-            width={56}
-            height={42}
+            width={100}
+            height={56}
             decoding="async"
           />
           <div className="aw-brand-text">
