@@ -32,7 +32,7 @@ export function LoginPage() {
           <div className="aw-login-brand-mark">
             <img
               className="aw-login-logo"
-              src="/logo.png?v=6"
+              src="/logo.png?v=7"
               alt=""
               width={140}
               height={120}

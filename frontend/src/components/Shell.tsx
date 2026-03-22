@@ -14,7 +14,7 @@ export function Shell() {
         <div className="aw-brand">
           <img
             className="aw-brand-logo"
-            src="/logo.png?v=6"
+            src="/logo.png?v=7"
             alt=""
             width={56}
             height={42}
