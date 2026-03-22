@@ -1,20 +1,46 @@
 import importlib.util
 import logging
 import os
+import stat
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import anyio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import Request
+from starlette.responses import Response
+from starlette.types import Scope
 
 from app.api import api_router
 from app.config import get_settings
 from app.database import Base, SessionLocal, engine
 
 logger = logging.getLogger(__name__)
+
+
+class SPAStaticFiles(StaticFiles):
+    """Serve Vite `dist` like StaticFiles, but fall back to `index.html` for unknown paths.
+
+    Starlette's ``html=True`` only adds directory ``index.html`` and optional ``404.html``;
+    it does **not** implement client-router SPA fallback, which would otherwise 404 on ``/login`` etc.
+    """
+
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code != 404 or not self.html:
+                raise
+            if scope["method"] not in ("GET", "HEAD"):
+                raise
+            full_path, st = await anyio.to_thread.run_sync(self.lookup_path, "index.html")
+            if st is not None and stat.S_ISREG(st.st_mode):
+                return self.file_response(full_path, st, scope)
+            raise
 
 
 def _vercel_seed_if_empty() -> None:
@@ -138,7 +164,7 @@ def create_app() -> FastAPI:
     if os.environ.get("VERCEL"):
         dist = _resolve_frontend_dist()
         if dist is not None:
-            app.mount("/", StaticFiles(directory=str(dist), html=True), name="spa")
+            app.mount("/", SPAStaticFiles(directory=str(dist), html=True), name="spa")
         else:
             logger.error(
                 "VERCEL is set but frontend/dist was not found inside the function bundle. "
